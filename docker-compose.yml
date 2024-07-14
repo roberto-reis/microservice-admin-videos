@@ -1,0 +1,63 @@
+
+services:
+    app:
+        container_name: microservice-admin-videos
+        build:
+            context: ./
+            dockerfile: docker/app/Dockerfile
+        restart: unless-stopped
+        working_dir: /var/www/
+        volumes:
+            - ./:/var/www
+            - ./.docker/php/custom.ini:/usr/local/etc/php/conf.d/custom.ini
+        depends_on:
+            mysql:
+                condition: service_healthy
+        networks:
+            - rede_microservice-admin-videos
+        entrypoint: ["sh", "./docker/app/docker-entrypoint.sh"]
+
+    nginx:
+        container_name: nginx_microservice-admin-videos
+        image: nginx:alpine
+        restart: unless-stopped
+        tty: true
+        ports:
+            - 9006:80
+        volumes:
+            - ./:/var/www
+            - ./docker/nginx/:/etc/nginx/conf.d/
+        networks:
+            - rede_microservice-admin-videos
+
+    mysql:
+        image: mysql:8.0
+        container_name: mysql_microservice-admin-videos
+        restart: unless-stopped
+        command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+        tty: true
+        environment:
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+            MYSQL_DATABASE: ${DB_DATABASE}
+        healthcheck:
+            test: "mysql --user=root --password=$${MYSQL_ROOT_PASSWORD} --execute 'SHOW DATABASES;'"
+            interval: 2s
+            timeout: 5s
+            retries: 10
+        volumes:
+            - ./.docker/mysql/dbdata:/var/lib/mysql
+        ports:
+            - 3308:3306
+        networks:
+            - rede_microservice-admin-videos
+
+    redis:
+        image: redis:alpine
+        container_name: redis_microservice-admin-videos
+        networks:
+            - rede_microservice-admin-videos
+
+networks:
+    rede_microservice-admin-videos:
+        name: rede_microservice-admin-videos
+        driver: bridge
